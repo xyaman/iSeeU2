@@ -1,6 +1,4 @@
-import os
-import pickle
-from imutils import paths
+import logging
 
 # TODO: Change path
 import webservice.db as db
@@ -9,7 +7,6 @@ import cv2
 import numpy as np 
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
-from PIL import Image
 
 RESIZED_DIMENSIONS = (300, 300) # Dimensions that SSD was trained on. 
 IMG_NORM_RATIO = 0.007843 # In grayscale a pixel can range between 0 and 255
@@ -17,12 +14,13 @@ IMG_NORM_RATIO = 0.007843 # In grayscale a pixel can range between 0 and 255
 CAMERA = 0
 
 class Recognition:
-    def __init__(self, source="recognition/video.mp4") -> None:
+    def __init__(self, source: int | str ="recognition/video.mp4") -> None:
         self.is_running = False
         self.people = 0
         self.capture = cv2.VideoCapture(source)
 
         # Load the pre-trained neural network
+        logging.info("Loading pre-trained neural network (objects)")
         self.neural_network = cv2.dnn.readNetFromCaffe('recognition/MobileNetSSD_deploy.prototxt.txt', 
                 'recognition/MobileNetSSD_deploy.caffemodel')
 
@@ -36,6 +34,7 @@ class Recognition:
          
         self.classes =  ["background", "aeroplane", "bicycle", "bird", "boat", "bottle", 
                     "bus", "car", "cat", "chair", "cow", 
+
                    "diningtable",  "dog", "horse", "motorbike", "person", 
                    "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
                               
@@ -142,6 +141,8 @@ class FaceTrainer:
         self.image_dir = images_dir
 
     def _detect_faces(self, net, image, min_confidence=0.5):
+        logging.info("calling _detect_faces")
+
         # grab the dimensions of the image and then construct a blob from it
         (h, w) = image.shape[:2]
         blob = cv2.dnn.blobFromImage(image, 1.0, (300, 300), (104.0, 177.0, 123.0))
@@ -185,6 +186,7 @@ class FaceTrainer:
         labels = []
         faces = []
 
+        logging.info("Getting ROI of every image")
         for idx, img_path in enumerate(images_path):
             image = cv2.imread("webservice/static/images/" + img_path)
             boxes = self._detect_faces(net, image)
@@ -200,6 +202,8 @@ class FaceTrainer:
                 faces.append(faceROI)
                 labels.append(idx)
 
+        logging.info("ROI Done")
+
         # convert our faces and labels lists to NumPy arrays
         faces = np.array(faces)
         labels = np.array(labels)
@@ -213,7 +217,7 @@ class FaceTrainer:
         # https://raw.githubusercontent.com/opencv/opencv_3rdparty/dnn_samples_face_detector_20180205_fp16/res10_300x300_ssd_iter_140000_fp16.caffemodel 
         model_path = "recognition/res10_300x300_ssd_iter_140000_fp16.caffemodel"
 
-        # face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+        logging.info("Loading train model, face recognizer")
         net = cv2.dnn.readNetFromCaffe(prototxt_path, model_path)
 
         (faces, labels) = self._load_faces_dataset(net)
@@ -225,16 +229,12 @@ class FaceTrainer:
         (trainX, _, trainY, _) = train_test_split(faces,
             labels, test_size=0.2, stratify=labels, random_state=42)
 
+        logging.info("Training model")
         recognizer = cv2.face.LBPHFaceRecognizer_create(radius=2, neighbors=16, grid_x=8, grid_y=8)
         recognizer.train(trainX, trainY)
 
-        # We should compare and see accuraccy
-        print("here")
- 
-
-
-
-            
+        # TODO: We should compare and see accuraccy
+        logging.info("Training finished")
 
 if __name__ == "__main__":
     # r = Recognition()
