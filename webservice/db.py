@@ -26,7 +26,7 @@ class DB:
     # returns the count of new unrecognized photos
     def get_new_count(self):
         self.cur = self.con.cursor()
-        table_cur = self.cur.execute(f"SELECT COUNT(*) FROM Face WHERE person_id=NULL;")
+        table_cur = self.cur.execute(f"SELECT COUNT(*) AS count FROM Face WHERE person_id IS NULL;")
 
         data = table_cur.fetchall()
 
