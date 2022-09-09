@@ -1,8 +1,6 @@
 import cv2 # Computer vision library
 import numpy as np # Scientific computing library 
 
-filename = 'video.mp4'
-
 RESIZED_DIMENSIONS = (300, 300) # Dimensions that SSD was trained on. 
 IMG_NORM_RATIO = 0.007843 # In grayscale a pixel can range between 0 and 255
 
@@ -36,7 +34,7 @@ class Recognition:
         # Stop when the video is finished
         self.capture.release()
 
-    def run(self, rects=True):
+    def run(self, rects=True, window=True):
      
         # Process the video
         while self.capture.isOpened():
@@ -93,21 +91,28 @@ class Recognition:
                             cv2.putText(frame, label, (startX, y),cv2.FONT_HERSHEY_SIMPLEX, 
                                 0.5, self.bbox_colors[idx], 2)
              
-                # We now need to resize the frame so its dimensions
-                # are equivalent to the dimensions of the original frame
-                frame = cv2.resize(frame, (640, 360), interpolation=cv2.INTER_NEAREST)
+                if(window):
+                    # We now need to resize the frame so its dimensions
+                    # are equivalent to the dimensions of the original frame
+                    frame = cv2.resize(frame, (640, 360), interpolation=cv2.INTER_NEAREST)
 
-                # Write the frame to the output video file
-                # displaying image with bounding box
-                cv2.imshow('face_detect', frame)
-                print(people)
+                    # Write the frame to the output video file
+                    # displaying image with bounding box
+                    cv2.imshow('face_detect', frame)
+
+                print(self.people)
 
                 if cv2.waitKey(10) & 0xFF == ord('q'):
                         break
             else:
-                cv2.destroyWindow('face_detect')
+                if window:
+                    cv2.destroyWindow('face_detect')
                 break
 
-r = Recognition()
-r.run(rects=True)
-r.deinit()
+    def run_once(self):
+        pass
+
+if __name__ == "__main__":
+    r = Recognition()
+    r.run(rects=True, window=False)
+    r.deinit()
