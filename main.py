@@ -1,10 +1,5 @@
-from flask import Flask
+import recognition.recognition as r
 
-app = Flask(__name__)
-
-@app.route("/")
-
-def hello_world():
-    return "<p>Hello world!</p>"
-
-app.run(host="0.0.0.0", debug=True)
+recognition = r.Recognition(0)
+recognition.run(rects=False, window=False)
+recognition.deinit()
