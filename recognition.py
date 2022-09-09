@@ -1,10 +1,12 @@
-import os
-import pickle
-from imutils import paths
+import logging
+
+# TODO: Change path
+import webservice.db as db
 
 import cv2 
 import numpy as np 
-from PIL import Image
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
 
 RESIZED_DIMENSIONS = (300, 300) # Dimensions that SSD was trained on. 
 IMG_NORM_RATIO = 0.007843 # In grayscale a pixel can range between 0 and 255
@@ -12,12 +14,13 @@ IMG_NORM_RATIO = 0.007843 # In grayscale a pixel can range between 0 and 255
 CAMERA = 0
 
 class Recognition:
-    def __init__(self, source="recognition/video.mp4") -> None:
+    def __init__(self, source: int | str ="recognition/video.mp4") -> None:
         self.is_running = False
         self.people = 0
         self.capture = cv2.VideoCapture(source)
 
         # Load the pre-trained neural network
+        logging.info("Loading pre-trained neural network (objects)")
         self.neural_network = cv2.dnn.readNetFromCaffe('recognition/MobileNetSSD_deploy.prototxt.txt', 
                 'recognition/MobileNetSSD_deploy.caffemodel')
 
@@ -31,6 +34,7 @@ class Recognition:
          
         self.classes =  ["background", "aeroplane", "bicycle", "bird", "boat", "bottle", 
                     "bus", "car", "cat", "chair", "cow", 
+
                    "diningtable",  "dog", "horse", "motorbike", "person", 
                    "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
                               
@@ -137,6 +141,8 @@ class FaceTrainer:
         self.image_dir = images_dir
 
     def _detect_faces(self, net, image, min_confidence=0.5):
+        logging.info("calling _detect_faces")
+
         # grab the dimensions of the image and then construct a blob from it
         (h, w) = image.shape[:2]
         blob = cv2.dnn.blobFromImage(image, 1.0, (300, 300), (104.0, 177.0, 123.0))
@@ -165,55 +171,75 @@ class FaceTrainer:
         # return the face detection bounding boxes
         return boxes
 
-    def _load_faces(self):
-        imagePaths = list(paths.list_images(self.image_dir))
-        print(imagePaths)
+    def _load_faces_dataset(self, net):
+
+        database = db.get()
+        images = database.get_sample()
+        images_path = []
+        images_name = []
+
+        for person in images:
+            images_path.append(person["path"])
+            images_name.append(person["fname"])
+
+        # initialize lists to store our extracted faces and associated labels
+        labels = []
+        faces = []
+
+        logging.info("Getting ROI of every image")
+        for idx, img_path in enumerate(images_path):
+            image = cv2.imread("webservice/static/images/" + img_path)
+            boxes = self._detect_faces(net, image)
+
+            # TODO: Recognize more than one
+            for (startX, startY, endX, endY) in boxes[:1]:
+                 # extract the face ROI, resize it, and convert it to grayscale
+                faceROI = image[startY:endY, startX:endX]
+                faceROI = cv2.resize(faceROI, (47, 62))
+                faceROI = cv2.cvtColor(faceROI, cv2.COLOR_BGR2GRAY)
+
+                # update our faces and labels lists
+                faces.append(faceROI)
+                labels.append(idx)
+
+        logging.info("ROI Done")
+
+        # convert our faces and labels lists to NumPy arrays
+        faces = np.array(faces)
+        labels = np.array(labels)
+        # return a 2-tuple of the faces and labels
+        return (faces, labels)
+
 
     def train(self, min_confidence=0.5):
+        # https://raw.githubusercontent.com/opencv/opencv/master/samples/dnn/face_detector/deploy.prototxt
+        prototxt_path = "recognition/deploy.prototxt.txt"
+        # https://raw.githubusercontent.com/opencv/opencv_3rdparty/dnn_samples_face_detector_20180205_fp16/res10_300x300_ssd_iter_140000_fp16.caffemodel 
+        model_path = "recognition/res10_300x300_ssd_iter_140000_fp16.caffemodel"
 
-        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
-        recognizer = cv2.face.LBPHFaceRecognizer_create()
+        logging.info("Loading train model, face recognizer")
+        net = cv2.dnn.readNetFromCaffe(prototxt_path, model_path)
 
-        current_id = 0
-        label_ids = {}
-        y_labels = []
-        x_train = []
+        (faces, labels) = self._load_faces_dataset(net)
+        # encode the string labels as integers
+        le = LabelEncoder()
+        labels = le.fit_transform(labels)
 
-        for root, _, files in os.walk(self.image_dir):
-             for file in files:
-                 if file.endswith("png") or file.endswith("jpg") or file.endswith("jpeg"):
-                    path = os.path.join(root, file)
-                    label = os.path.basename(root).replace(" ","-").lower()
-                    print(label, path)
-                    if not label in label_ids:
-                        label_ids[label] = current_id
-                        current_id += 1
-                    id_ =label_ids[label]
-                    print(label_ids)
+        # construct our training and testing split
+        (trainX, _, trainY, _) = train_test_split(faces,
+            labels, test_size=0.2, stratify=labels, random_state=42)
 
-                    pil_image = Image.open(path).convert("L")
-                    size = (550, 550)
-                    final_image = pil_image.resize(size, Image.ANTIALIAS)
-                    image_array = np.array(final_image, "uint8")
-                    faces = face_cascade.detectMultiScale(image_array, scaleFactor=2, minNeighbors=5)
+        logging.info("Training model")
+        recognizer = cv2.face.LBPHFaceRecognizer_create(radius=2, neighbors=16, grid_x=8, grid_y=8)
+        recognizer.train(trainX, trainY)
 
-                    for (x, y, w, h) in faces:
-                       roi = image_array[y:y+h, x:x+w]
-                       x_train.append(roi)
-                       y_labels.append(id_)
-
-
-        with open("labels.pickles", 'wb') as f:
-            pickle.dump(label_ids, f)
-
-        recognizer.train(x_train, np.array(y_labels))
-        recognizer.save("trainner.yml")
-            
+        # TODO: We should compare and see accuraccy
+        logging.info("Training finished")
 
 if __name__ == "__main__":
     # r = Recognition()
     # r.run(rects=True, window=True)
     # r.deinit()
 
-    trainer = FaceTrainer("webserver/static/images/")
-    trainer._load_faces()
+    trainer = FaceTrainer("./webservice/static/images/")
+    trainer.train()
