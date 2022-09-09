@@ -9,12 +9,12 @@
               <li class="table-header">
                 <div class="col col-1">Time</div>
                 <div class="col col-2">Photo</div>
-                <div class="col col-2">Name</div>
+                <div class="col col-3">Name</div>
               </li>
               {% for set in data %}
               <li class="table-row">
                 <div class="col col-1" data-label="time">{{set.time}}</div>
-                <div class="col col-2" data-label="photo"><img style="width=300px" src="{{set.path}}"</div>
+                <div class="col col-2" data-label="photo"><img style="width:300px" src="images/{{set.path}}"></div>
                 <div class="col col-3" data-label="name">{{set.fname}}</div>
               </li>
               {% endfor %}

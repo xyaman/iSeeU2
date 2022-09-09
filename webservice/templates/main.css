@@ -1,5 +1,6 @@
 body {
     font-family: 'lato', sans-serif;
+    text-align: center;
 }
 
 .container {
@@ -11,9 +12,10 @@ body {
 }
 
 h2 {
-    font-size: 2em;
+    font-size: 1em;
     margin: 20px 0;
     text-align: center;
+
 }
 
 li {
@@ -26,7 +28,7 @@ li {
 
 .table-header {
     background-color: #95A5A6;
-    font-size: 2em;
+    font-size: 14px;
     text-transform: uppercase;
     letter-spacing: 0.03em;
 }
@@ -75,6 +77,6 @@ li {
         padding-right: 10px;
         content: attr(data-label);
         flex-basis: 50%;
-        text-align: left;
+        text-align: center;
     }
 }
