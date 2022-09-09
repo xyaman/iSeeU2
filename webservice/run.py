@@ -10,7 +10,7 @@ class Server:
         
         # register routes
         self.app.add_url_rule("/", view_func=self.homepage)
-        self.app.add_url_rule("/new", view_func=self.homepage)
+        self.app.add_url_rule("/new", view_func=self.newpage)
 
 
     def homepage(self):
