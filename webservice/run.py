@@ -23,11 +23,11 @@ class Server:
 
     def newpage(self):
         database = db.get()
-        sql_data = database.get_sample()
+        sql_data = database.get_unrecognized_samples()
         sql_new = database.get_new_count()
         sql_new = sql_new[0]
-        print(sql_new[0])
-        return render_template('new.html', data=sql_data, new=sql_new["count"])
+        sql_names = database.get_names()
+        return render_template('new.html', data=sql_data, new=sql_new["count"], names=sql_names)
 
 
 

@@ -25,7 +25,7 @@ class DB:
             fname: str
         """
         self.cur = self.con.cursor()
-        table_cur = self.cur.execute(f"SELECT f.time, f.path, p.fname FROM Face f JOIN Person p ON f.person_id=p.id;")
+        table_cur = self.cur.execute(f"SELECT f.time, f.path, p.fname FROM Face f JOIN Person p ON f.person_id=p.id ORDER BY f.time DESC;")
 
         data = table_cur.fetchall()
 
@@ -34,6 +34,48 @@ class DB:
     def get_new_count(self):
         self.cur = self.con.cursor()
         table_cur = self.cur.execute(f"SELECT COUNT(*) AS count FROM Face WHERE person_id IS NULL;")
+
+        data = table_cur.fetchall()
+
+        return data
+    
+    def get_unrecognized_samples(self):
+        """
+        Returns a dictionary with the following fields:
+            time: str
+            path: str
+            fname: str
+        """
+        self.cur = self.con.cursor()
+        table_cur = self.cur.execute(f"SELECT f.id, f.time, f.path FROM Face f WHERE f.person_id IS NULL ORDER BY f.time DESC;")
+
+        data = table_cur.fetchall()
+
+        return data
+
+    def get_names(self):
+        """
+        Returns a dictionary with the following fields:
+            time: str
+            path: str
+            fname: str
+        """
+        self.cur = self.con.cursor()
+        table_cur = self.cur.execute(f"SELECT id, fname, lname FROM Person;")
+
+        data = table_cur.fetchall()
+
+        return data 
+
+    def add_person_to_image(self, image_id, person_id):
+        """
+        Returns a dictionary with the following fields:
+            time: str
+            path: str
+            fname: str
+        """
+        self.cur = self.con.cursor()
+        table_cur = self.cur.execute(f"UPDATE Face SET person_id="+person_id+";")
 
         data = table_cur.fetchall()
 
