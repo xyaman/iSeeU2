@@ -22,7 +22,7 @@
                   <div class="col col-2" data-label="photo"><img style="width:300px" src="images/{{set.path}}"></div>
                   <div class="col col-3" data-label="name">
                     <div class="input-select">
-                      <select name="id" id={{ set.id }}>
+                      <select name="id" id="s-{{ set.id }}">
                           <option value="new">New Person</option> 
                         {% for person in people %}
                           <option value="{{person.id}},{{set.id}}">{{person.fname}} {{person.lname}}</option> 
@@ -42,30 +42,32 @@
           <iframe name="frame" style="display:none;"></iframe>
 
       <script>
-        const selectElement = document.querySelector('select');
+        const selectElements = document.querySelectorAll('select');
 
-        selectElement.addEventListener('change', (event) => {
-            if(event.target.value != "new") {
-                const fnameInput = document.getElementById(`fname-${event.target.id}`);
-                const lnameInput = document.getElementById(`lname-${event.target.id}`);
+        for(int i = 0; i < selectElements.length; i++) {
+          selectElements[i].addEventListener('change', (event) => {
+              if(event.target.value != "new") {
+                  const fnameInput = document.getElementById(`fname-${event.target.id.slice(2)}`);
+                  const lnameInput = document.getElementById(`lname-${event.target.id.slice(2)}`);
 
-                fnameInput.style.display = "none";
-                lnameInput.style.display = "none";
+                  fnameInput.style.display = "none";
+                  lnameInput.style.display = "none";
 
-                const parentForm = document.getElementById(`form-${event.target.id}`);
-                
-                // submit, then remove from the DOM
-                parentForm.submit();
-                parentForm.remove();
+                  const parentForm = document.getElementById(`form-${event.target.id.slice(2)}`);
+                  
+                  // submit, then remove from the DOM
+                  parentForm.submit();
+                  parentForm.remove();
 
-            } else {
-                const fnameInput = document.getElementById(`fname-${event.target.id}`);
-                const lnameInput = document.getElementById(`lname-${event.target.id}`);
-            
-                fnameInput.style.display = "block";
-                lnameInput.style.display = "block";
-            }
-        });
+              } else {
+                  const fnameInput = document.getElementById(`fname-${event.target.id.slice(2)}`);
+                  const lnameInput = document.getElementById(`lname-${event.target.id.slice(2)}`);
+              
+                  fnameInput.style.display = "block";
+                  lnameInput.style.display = "block";
+              }
+          });
+        }
 
         const buttonElement = document.querySelector("button.form");
         buttonElement.addEventListener("click", event => {
