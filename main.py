@@ -11,9 +11,10 @@ if __name__ == "__main__":
     from_server = Queue()
 
     # Start server in a thread
-    threading.Thread(target=server.run, args=())
+    server_thread = threading.Thread(target=server.run, args=())
+    server_thread.join()
 
-    recognition = r.Recognition(r.CAMERA)
-    recognition.run(rects=False, window=False)
-    recognition.deinit()
+    # recognition = r.Recognition(r.CAMERA)
+    # recognition.run(rects=False, window=False)
+    # recognition.deinit()
 
