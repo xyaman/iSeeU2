@@ -42,32 +42,30 @@
           <iframe name="frame" style="display:none;"></iframe>
 
       <script>
-        const selectElements = document.querySelectorAll('select');
+        document.querySelectorAll('select').forEach(element => {
+            element.addEventListener('change', (event) => {
+                if(event.target.value != "new") {
+                    const fnameInput = document.getElementById(`fname-${event.target.id.slice(2)}`);
+                    const lnameInput = document.getElementById(`lname-${event.target.id.slice(2)}`);
 
-        for(int i = 0; i < selectElements.length; i++) {
-          selectElements[i].addEventListener('change', (event) => {
-              if(event.target.value != "new") {
-                  const fnameInput = document.getElementById(`fname-${event.target.id.slice(2)}`);
-                  const lnameInput = document.getElementById(`lname-${event.target.id.slice(2)}`);
+                    fnameInput.style.display = "none";
+                    lnameInput.style.display = "none";
 
-                  fnameInput.style.display = "none";
-                  lnameInput.style.display = "none";
+                    const parentForm = document.getElementById(`form-${event.target.id.slice(2)}`);
+                    
+                    // submit, then remove from the DOM
+                    parentForm.submit();
+                    parentForm.remove();
 
-                  const parentForm = document.getElementById(`form-${event.target.id.slice(2)}`);
-                  
-                  // submit, then remove from the DOM
-                  parentForm.submit();
-                  parentForm.remove();
-
-              } else {
-                  const fnameInput = document.getElementById(`fname-${event.target.id.slice(2)}`);
-                  const lnameInput = document.getElementById(`lname-${event.target.id.slice(2)}`);
-              
-                  fnameInput.style.display = "block";
-                  lnameInput.style.display = "block";
-              }
-          });
-        }
+                } else {
+                    const fnameInput = document.getElementById(`fname-${event.target.id.slice(2)}`);
+                    const lnameInput = document.getElementById(`lname-${event.target.id.slice(2)}`);
+                
+                    fnameInput.style.display = "block";
+                    lnameInput.style.display = "block";
+                }
+            });
+        });
 
         const buttonElement = document.querySelector("button.form");
         buttonElement.addEventListener("click", event => {
