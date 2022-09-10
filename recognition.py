@@ -19,6 +19,10 @@ class Recognition:
         self.people = 0
         self.capture = cv2.VideoCapture(source)
 
+        database = db.get()
+        rows = database.get_sample()
+        self.labels = [x["fname"] for x in rows]
+
         # Load the pre-trained neural network
         logging.info("Loading pre-trained neural network (objects)")
         self.neural_network = cv2.dnn.readNetFromCaffe('recognition/MobileNetSSD_deploy.prototxt.txt', 
@@ -40,6 +44,17 @@ class Recognition:
                               
         # Create the bounding boxes
         self.bbox_colors = np.random.uniform(255, 0, size=(len(self.categories), 3))
+
+        self.recognizer = cv2.face.LBPHFaceRecognizer_create()
+        self.recognizer.read("trained_data.yml")
+
+        # https://raw.githubusercontent.com/opencv/opencv/master/samples/dnn/face_detector/deploy.prototxt
+        prototxt_path = "recognition/deploy.prototxt.txt"
+        # https://raw.githubusercontent.com/opencv/opencv_3rdparty/dnn_samples_face_detector_20180205_fp16/res10_300x300_ssd_iter_140000_fp16.caffemodel 
+        model_path = "recognition/res10_300x300_ssd_iter_140000_fp16.caffemodel"
+
+        logging.info("Loading FACE Recognition Model")
+        self.face_net = cv2.dnn.readNetFromCaffe(prototxt_path, model_path)
   
     def deinit(self):
         # Stop when the video is finished
@@ -54,7 +69,7 @@ class Recognition:
             ok, frame = self.run_once(rects=rects)
 
             if ok:
-                print(self.people)
+                # print(self.people)
 
                 if cv2.waitKey(10) & 0xFF == ord('q'):
                     break
@@ -104,7 +119,7 @@ class Recognition:
      
                 # Confidence must be at least 30%       
                 
-                if confidence > 0.30:
+                if confidence > 0.50:
              
                     idx = int(neural_network_output[0, 0, i, 1])
 
@@ -116,9 +131,8 @@ class Recognition:
                     if self.classes[idx] == "person":
                         self.people += 1
 
-                    label = f"{self.classes[idx]} {confidence * 100}"
                     if rects:
-     
+                        label = f"{self.classes[idx]} {confidence * 100}"
                         cv2.rectangle(frame, (startX, startY), (
                             endX, endY), self.bbox_colors[idx], 2)     
                          
@@ -126,6 +140,43 @@ class Recognition:
  
                         cv2.putText(frame, label, (startX, y),cv2.FONT_HERSHEY_SIMPLEX, 
                             0.5, self.bbox_colors[idx], 2)
+
+            frame_blob = cv2.dnn.blobFromImage(frame, 1.0, (300, 300), (104.0, 177.0, 123.0))
+
+            # pass the blob through the network to obtain the face detections,
+            # then initialize a list to store the predicted bounding boxes
+            self.face_net.setInput(frame_blob)
+            detections = self.face_net.forward()
+
+            # loop over the detections
+            for i in range(0, detections.shape[2]):
+                # extract the confidence (i.e., probability) associated with
+                # the detection
+                confidence = detections[0, 0, i, 2]
+                # filter out weak detections by ensuring the confidence is
+                # greater than the minimum confidence
+                if confidence > 0.5:
+                    # compute the (x, y)-coordinates of the bounding box for
+                    # the object
+                    box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+                    (startX, startY, endX, endY) = box.astype("int")
+                     # extract the face ROI, resize it, and convert it to grayscale
+                    faceROI = frame[startY:endY, startX:endX]
+                    faceROI = cv2.resize(faceROI, (47, 62))
+                    faceROI = cv2.cvtColor(faceROI, cv2.COLOR_BGR2GRAY)
+
+                    label, _ = self.recognizer.predict(faceROI)
+                    if rects:
+                        label = f"{self.labels[label]} {confidence * 100}"
+
+                        cv2.rectangle(frame, (startX, startY), (
+                            endX, endY), self.bbox_colors[0], 2)     
+                         
+                        y = startY - 15 if startY - 15 > 15 else startY + 15    
+ 
+                        cv2.putText(frame, label, (startX, y),cv2.FONT_HERSHEY_SIMPLEX, 
+                            0.5, self.bbox_colors[1], 2)
+
 
             return ok, frame
 
@@ -146,6 +197,8 @@ class FaceTrainer:
         # grab the dimensions of the image and then construct a blob from it
         (h, w) = image.shape[:2]
         blob = cv2.dnn.blobFromImage(image, 1.0, (300, 300), (104.0, 177.0, 123.0))
+        #blob = cv2.dnn.blobFromImage(cv2.resize(image, RESIZED_DIMENSIONS), 
+         #                  IMG_NORM_RATIO, RESIZED_DIMENSIONS, 127.5)
 
         # pass the blob through the network to obtain the face detections,
 	    # then initialize a list to store the predicted bounding boxes
@@ -179,6 +232,9 @@ class FaceTrainer:
         images_name = []
 
         for person in images:
+            if person["fname"] == None:
+                continue
+
             images_path.append(person["path"])
             images_name.append(person["fname"])
 
@@ -207,6 +263,7 @@ class FaceTrainer:
         # convert our faces and labels lists to NumPy arrays
         faces = np.array(faces)
         labels = np.array(labels)
+
         # return a 2-tuple of the faces and labels
         return (faces, labels)
 
@@ -221,25 +278,65 @@ class FaceTrainer:
         net = cv2.dnn.readNetFromCaffe(prototxt_path, model_path)
 
         (faces, labels) = self._load_faces_dataset(net)
+
         # encode the string labels as integers
         le = LabelEncoder()
         labels = le.fit_transform(labels)
 
+        # TODO: We should compare and see accuraccy
         # construct our training and testing split
-        (trainX, _, trainY, _) = train_test_split(faces,
-            labels, test_size=0.2, stratify=labels, random_state=42)
+        # (trainX, _, trainY, _) = train_test_split(faces,
+        #     labels, test_size=0.5, stratify=labels, random_state=42)
 
         logging.info("Training model")
         recognizer = cv2.face.LBPHFaceRecognizer_create(radius=2, neighbors=16, grid_x=8, grid_y=8)
-        recognizer.train(trainX, trainY)
+        recognizer.train(faces, labels)
+        recognizer.save("trained_data.yml")
 
-        # TODO: We should compare and see accuraccy
         logging.info("Training finished")
 
-if __name__ == "__main__":
-    # r = Recognition()
-    # r.run(rects=True, window=True)
-    # r.deinit()
+def face_recognition():
 
-    trainer = FaceTrainer("./webservice/static/images/")
-    trainer.train()
+    while True:
+
+        ok, image = cap.read()
+        if not ok:
+            break
+
+        (h, w) = image.shape[:2]
+        blob = cv2.dnn.blobFromImage(image, 1.0, (300, 300), (104.0, 177.0, 123.0))
+
+        # pass the blob through the network to obtain the face detections,
+        # then initialize a list to store the predicted bounding boxes
+        net.setInput(blob)
+        detections = net.forward()
+
+        # loop over the detections
+        for i in range(0, detections.shape[2]):
+            # extract the confidence (i.e., probability) associated with
+            # the detection
+            confidence = detections[0, 0, i, 2]
+            # filter out weak detections by ensuring the confidence is
+            # greater than the minimum confidence
+            if confidence > 0.5:
+                # compute the (x, y)-coordinates of the bounding box for
+                # the object
+                box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+                (startX, startY, endX, endY) = box.astype("int")
+                 # extract the face ROI, resize it, and convert it to grayscale
+                faceROI = image[startY:endY, startX:endX]
+                faceROI = cv2.resize(faceROI, (47, 62))
+                faceROI = cv2.cvtColor(faceROI, cv2.COLOR_BGR2GRAY)
+
+                print(recognizer.predict(faceROI))
+
+if __name__ == "__main__":
+    # trainer = FaceTrainer("./webservice/static/images/")
+    # trainer.train()
+
+    r = Recognition(CAMERA)
+    r.run(rects=True, window=True)
+    r.deinit()
+
+    #
+    # face_recognition()
