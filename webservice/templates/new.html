@@ -23,7 +23,7 @@
                   <div class="col col-3" data-label="name">
                     <div class="input-select">
                       <select name="id" id="s-{{ set.id }}">
-                          <option value="new">New Person</option> 
+			  <option value="new, {{set.id}}">New Person</option> 
                         {% for person in people %}
                           <option value="{{person.id}},{{set.id}}">{{person.fname}} {{person.lname}}</option> 
                         {% endfor %}   

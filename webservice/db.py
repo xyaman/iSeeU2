@@ -98,10 +98,9 @@ class DB:
 
     def insert_person(self, fname, lname):
         self.cur = self.con.cursor()
-        person_cur = self.cur.execute(f"INSERT INTO Person (fname, lname) VALUES ({fname}, {lname})")
-        self.con.commit()
+        person_cur = self.cur.execute(f"INSERT INTO Person (fname, lname) VALUES ('{fname}', '{lname}')")
 
-        print(person_cur)
+        return self.cur.lastrowid
 
 def get():
     return DB()
