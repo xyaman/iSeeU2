@@ -25,7 +25,7 @@ class Server:
         return render_template('index.html', data=sql_data, new=sql_new["count"])
 
     def update(self):
-        self.from_server.put(constants.DATABASE_CHANGED)
+        self.from_server.put(constants.DATABASE_UPDATED)
         return "OK"
 
     def newpage(self):

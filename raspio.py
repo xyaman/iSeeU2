@@ -1,24 +1,28 @@
 import RPi.GPIO as GPIO
-import time, os, logging, uuid
-from picamera import PiCamera
+import time, os, logging, uuid, cv2
 
 import webserver.db as db
 
-camera = PiCamera()
-
-def take():
+def take(cap):
     # path = "/home/pi/hackathon-git/webservice/static/images/"+str(len(os.listdir("../webservice/static/images"))+1)+".jpg"
 
     filename = f"{uuid.uuid4()}.jpg"
-    path = f"{os.path.dirname(__file__)}/webservice/static/images/{filename}"
-    camera.capture(path)
+    path = f"{os.path.dirname(__file__)}/webserver/static/images/{filename}"
+
+
+    ok, frame = cap.read() 
+    if not ok:
+        return
+
+    cv2.imwrite(path, frame)
 
     # Save to database, keep in mind that it uses only filename
     database = db.get()
     database.insert_path(filename)
 
+
 INPUT1 = 17
-INPUT2 = 27
+INPUT2 = 18
 
 def setup():
     logging.info("GPIO setup starting...")
@@ -28,9 +32,9 @@ def setup():
     GPIO.setup(INPUT1, GPIO.IN, pull_up_down=GPIO.PUD_UP)
     GPIO.setup(INPUT2, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
+
 def get_state(input: int):
     return not GPIO.input(input)
-
 
 if __name__ == "__main__":
     setup()

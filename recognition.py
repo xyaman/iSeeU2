@@ -1,4 +1,4 @@
-import logging
+import logging, os
 
 # TODO: Change path
 import webserver.db as db
@@ -8,26 +8,32 @@ import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 
+import threading
+
 RESIZED_DIMENSIONS = (300, 300) # Dimensions that SSD was trained on. 
 IMG_NORM_RATIO = 0.007843 # In grayscale a pixel can range between 0 and 255
 
 CAMERA = 0
 
 class Recognition:
-    def __init__(self, source: int | str ="recognition/video.mp4") -> None:
+    def __init__(self, source="recognition/video.mp4", load_objects=True) -> None:
         self.is_running = False
         self.people = 0
-        self.recognized = []
+        self.recognized = set(())
+
         self.capture = cv2.VideoCapture(source)
 
         database = db.get()
         rows = database.get_sample()
         self.labels = [x["fname"] for x in rows]
 
-        # Load the pre-trained neural network
-        logging.info("Loading pre-trained neural network (objects)")
-        self.neural_network = cv2.dnn.readNetFromCaffe('recognition/MobileNetSSD_deploy.prototxt.txt', 
-                'recognition/MobileNetSSD_deploy.caffemodel')
+        self.load_objects = load_objects
+        
+        if self.load_objects:
+            # Load the pre-trained neural network
+            logging.info("Loading pre-trained neural network (objects)")
+            self.neural_network = cv2.dnn.readNetFromCaffe('recognition/MobileNetSSD_deploy.prototxt.txt', 
+                    'recognition/MobileNetSSD_deploy.caffemodel')
 
         # List of categories and classes
         self.categories = { 0: 'background', 1: 'aeroplane', 2: 'bicycle', 3: 'bird', 
@@ -36,7 +42,7 @@ class Recognition:
                       13: 'horse', 14: 'motorbike', 15: 'person', 
                       16: 'pottedplant', 17: 'sheep', 18: 'sofa', 
                       19: 'train', 20: 'tvmonitor'}
-         
+             
         self.classes =  ["background", "aeroplane", "bicycle", "bird", "boat", "bottle", 
                     "bus", "car", "cat", "chair", "cow", 
 
@@ -47,11 +53,13 @@ class Recognition:
         self.bbox_colors = np.random.uniform(255, 0, size=(len(self.categories), 3))
 
         self.recognizer = cv2.face.LBPHFaceRecognizer_create()
-        self.recognizer.read("trained_data.yml")
+        try:
+            self.recognizer.read("trained_data.yml")
+        except:
+            logging.info("No model to load")
+            self.update(os.path.dirname(__file__) + "/webserver/static/images/")
 
-        # https://raw.githubusercontent.com/opencv/opencv/master/samples/dnn/face_detector/deploy.prototxt
         prototxt_path = "recognition/deploy.prototxt.txt"
-        # https://raw.githubusercontent.com/opencv/opencv_3rdparty/dnn_samples_face_detector_20180205_fp16/res10_300x300_ssd_iter_140000_fp16.caffemodel 
         model_path = "recognition/res10_300x300_ssd_iter_140000_fp16.caffemodel"
 
         logging.info("Loading FACE Recognition Model")
@@ -97,60 +105,60 @@ class Recognition:
 
     def run_once(self, rects=False):
 
-        self.recognized = {}
+        self.recognized = set(())
 
         # Capture one frame at a time
         ok, frame = self.capture.read() 
 
         # Do we have a video frame? If true, proceed.
         if ok:
-            self.people = 0
-     
             # Capture the frame's height and width
             (h, w) = frame.shape[:2]
 
-            # Create a blob. A blob is a group of connected pixels in a binary 
-            # frame that share some common property (e.g. grayscale value)
-            # Preprocess the frame to prepare it for deep learning classification
-            frame_blob = cv2.dnn.blobFromImage(cv2.resize(frame, RESIZED_DIMENSIONS), 
-                           IMG_NORM_RATIO, RESIZED_DIMENSIONS, 127.5)
+            if self.load_objects:
+                    self.people = 0
+
+                    # Create a blob. A blob is a group of connected pixels in a binary 
+                    # frame that share some common property (e.g. grayscale value)
+                    # Preprocess the frame to prepare it for deep learning classification
+                    frame_blob = cv2.dnn.blobFromImage(cv2.resize(frame, RESIZED_DIMENSIONS), 
+                                   IMG_NORM_RATIO, RESIZED_DIMENSIONS, 127.5)
+                 
+                    # Set the input for the neural network
+                    self.neural_network.setInput(frame_blob)
+
+                    # Predict the objects in the image
+                    neural_network_output = self.neural_network.forward()
+
+                    # Put the bounding boxes around the detected objects
+                    for i in np.arange(0, neural_network_output.shape[2]):
+                     
+                        confidence = neural_network_output[0, 0, i, 2]
+             
+                        # Confidence must be at least 30%       
+                        if confidence > 0.30:
+                     
+                            idx = int(neural_network_output[0, 0, i, 1])
+
+                            bounding_box = neural_network_output[0, 0, i, 3:7] * np.array(
+                                [w, h, w, h])
+
+                            (startX, startY, endX, endY) = bounding_box.astype("int")
+
+                            self.recognized.add(self.classes[idx])
+
+                            if self.classes[idx] == "person":
+                                self.people += 1
+
+                            if rects:
+                                label = f"{self.classes[idx]} {confidence * 100}"
+                                cv2.rectangle(frame, (startX, startY), (
+                                    endX, endY), self.bbox_colors[idx], 2)     
+                                 
+                                y = startY - 15 if startY - 15 > 15 else startY + 15    
          
-            # Set the input for the neural network
-            self.neural_network.setInput(frame_blob)
-
-            # Predict the objects in the image
-            neural_network_output = self.neural_network.forward()
-
-            # Put the bounding boxes around the detected objects
-            for i in np.arange(0, neural_network_output.shape[2]):
-             
-                confidence = neural_network_output[0, 0, i, 2]
-     
-                # Confidence must be at least 30%       
-                
-                if confidence > 0.50:
-             
-                    idx = int(neural_network_output[0, 0, i, 1])
-
-                    bounding_box = neural_network_output[0, 0, i, 3:7] * np.array(
-                        [w, h, w, h])
-
-                    (startX, startY, endX, endY) = bounding_box.astype("int")
-
-                    self.recognized[self.classes[idx]] = 0
-
-                    if self.classes[idx] == "person":
-                        self.people += 1
-
-                    if rects:
-                        label = f"{self.classes[idx]} {confidence * 100}"
-                        cv2.rectangle(frame, (startX, startY), (
-                            endX, endY), self.bbox_colors[idx], 2)     
-                         
-                        y = startY - 15 if startY - 15 > 15 else startY + 15    
- 
-                        cv2.putText(frame, label, (startX, y),cv2.FONT_HERSHEY_SIMPLEX, 
-                            0.5, self.bbox_colors[idx], 2)
+                                cv2.putText(frame, label, (startX, y),cv2.FONT_HERSHEY_SIMPLEX, 
+                                    0.5, self.bbox_colors[idx], 2)
 
             frame_blob = cv2.dnn.blobFromImage(frame, 1.0, (300, 300), (104.0, 177.0, 123.0))
 
@@ -166,7 +174,7 @@ class Recognition:
                 confidence = detections[0, 0, i, 2]
                 # filter out weak detections by ensuring the confidence is
                 # greater than the minimum confidence
-                if confidence > 0.5:
+                if confidence > 0.3:
                     # compute the (x, y)-coordinates of the bounding box for
                     # the object
                     box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
@@ -177,7 +185,8 @@ class Recognition:
                     faceROI = cv2.cvtColor(faceROI, cv2.COLOR_BGR2GRAY)
 
                     label, _ = self.recognizer.predict(faceROI)
-                    self.recognized[self.labels[label]] = 0
+                    print(self.labels[label])
+                    self.recognized.add(self.labels[label])
 
                     if rects:
                         label = f"{self.labels[label]} {confidence * 100}"
@@ -189,8 +198,7 @@ class Recognition:
                         cv2.putText(frame, label, (startX, y),cv2.FONT_HERSHEY_SIMPLEX, 
                             0.5, self.bbox_colors[1], 2)
 
-
-            return ok, frame
+        return ok, frame
 
 class FaceTrainer:
     """
