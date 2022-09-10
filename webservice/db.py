@@ -86,6 +86,16 @@ class DB:
 
         return data
 
+    def insert_path(self, path):
+        """
+        Inserts the path of a new photo to the database
+        """
+        self.cur = self.con.cursor()
+        table_cur = self.cur.execute("INSERT INTO Face(path) VALUES('"+path+"');")
+        
+        self.con.commit()
+
+
     def insert_person(self, fname, lname):
         self.cur = self.con.cursor()
         person_cur = self.cur.execute(f"INSERT INTO Person (fname, lname) VALUES ({fname}, {lname})")
