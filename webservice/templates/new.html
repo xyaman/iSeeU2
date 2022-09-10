@@ -67,21 +67,22 @@
             });
         });
 
-        const buttonElement = document.querySelector("button.form");
-        buttonElement.addEventListener("click", event => {
-            event.preventDefault();
-            const fnameInput = document.getElementById(`fname-${event.target.id.slice(2)}`);
-            const lnameInput = document.getElementById(`lname-${event.target.id.slice(2)}`);
-        
-            // Safe to submit
-            if(fnameInput.value && lnameInput.value) {
-                const parentForm = document.getElementById(`form-${event.target.id.slice(2)}`);
-                
-                // submit, then remove from the DOM
-                parentForm.submit();
-                parentForm.remove();
-            }
-        });
+	document.querySelectorAll("button.form").forEach(element => {
+		element.addEventListener("click", event => {
+		    event.preventDefault();
+		    const fnameInput = document.getElementById(`fname-${event.target.id.slice(2)}`);
+		    const lnameInput = document.getElementById(`lname-${event.target.id.slice(2)}`);
+		
+		    // Safe to submit
+		    if(fnameInput.value && lnameInput.value) {
+			const parentForm = document.getElementById(`form-${event.target.id.slice(2)}`);
+			
+			// submit, then remove from the DOM
+			parentForm.submit();
+			parentForm.remove();
+		    }
+		});
+	});
       </script>
     </body>
 </html>

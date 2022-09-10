@@ -1,5 +1,5 @@
 import RPi.GPIO as GPIO
-import time
+import time, photo
 
 GPIO.setmode(GPIO.BCM)
 
@@ -11,7 +11,8 @@ while True:
     input2_state = GPIO.input(27)
     if input1_state == False:
         print('Button 1 Pressed')
-        time.sleep(0.2)
+        photo.take()
+        time.sleep(3)
     if input2_state == False:
         print('Button 2 Pressed')
-        time.sleep(0.2)
+        time.sleep(3)
