@@ -16,19 +16,72 @@
               <a href="../"><button class="button-hack" role="button-hack">Back to home</button></a>
               {% endif %}
               {% for set in data %}
-              <li class="table-row">
-                <div class="col col-1" data-label="time">{{set.time}}</div>
-                <div class="col col-2" data-label="photo"><img style="width:300px" src="images/{{set.path}}"></div>
-                <div class="col col-3" data-label="name">
-                    <select name="Search4" onchange="$('#myform').submit();">
-                    {% for name in names %}
-                    <option value="{{name['fname']}}">{{name['fname']}} {{name['lname']}}</option> 
-                    {% endfor %}   
-                </select>
-                </div>
-              </li>
+              <form id="form-{{set.id}}" target="frame" action="/new" method="POST">
+                <li class="table-row">
+                  <div class="col col-1" data-label="time">{{set.time}}</div>
+                  <div class="col col-2" data-label="photo"><img style="width:300px" src="images/{{set.path}}"></div>
+                  <div class="col col-3" data-label="name">
+                    <div class="input-select">
+                      <select name="id" id={{ set.id }}>
+                          <option value="new">New Person</option> 
+                        {% for person in people %}
+                          <option value="{{person.id}},{{set.id}}">{{person.fname}} {{person.lname}}</option> 
+                        {% endfor %}   
+                      </select>
+                      
+                      <input name="fname" id="fname-{{set.id}}" placeholder="First name"></input>
+                      <input name="lname" id="lname-{{set.id}}" placeholder="Last name"></input>
+                      <button class="form" id="b-{{set.id}}" type="button">Add new person</button>
+                    </div>
+                  </div>
+                </li>
+              </form>
               {% endfor %}
             </ul>
           </div>
+          <iframe name="frame" style="display:none;"></iframe>
+
+      <script>
+        const selectElement = document.querySelector('select');
+
+        selectElement.addEventListener('change', (event) => {
+            if(event.target.value != "new") {
+                const fnameInput = document.getElementById(`fname-${event.target.id}`);
+                const lnameInput = document.getElementById(`lname-${event.target.id}`);
+
+                fnameInput.style.display = "none";
+                lnameInput.style.display = "none";
+
+                const parentForm = document.getElementById(`form-${event.target.id}`);
+                
+                // submit, then remove from the DOM
+                parentForm.submit();
+                parentForm.remove();
+
+            } else {
+                const fnameInput = document.getElementById(`fname-${event.target.id}`);
+                const lnameInput = document.getElementById(`lname-${event.target.id}`);
+            
+                fnameInput.style.display = "block";
+                lnameInput.style.display = "block";
+            }
+        });
+
+        const buttonElement = document.querySelector("button.form");
+        buttonElement.addEventListener("click", event => {
+            event.preventDefault();
+            const fnameInput = document.getElementById(`fname-${event.target.id.slice(2)}`);
+            const lnameInput = document.getElementById(`lname-${event.target.id.slice(2)}`);
+        
+            // Safe to submit
+            if(fnameInput.value && lnameInput.value) {
+                const parentForm = document.getElementById(`form-${event.target.id.slice(2)}`);
+                
+                // submit, then remove from the DOM
+                parentForm.submit();
+                parentForm.remove();
+            }
+        });
+      </script>
     </body>
 </html>

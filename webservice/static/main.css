@@ -140,3 +140,10 @@ li {
     background-color: #298e46;
     box-shadow: rgba(20, 70, 32, .2) 0 1px 0 inset;
 }
+
+.input-select {
+    display: flex;
+    direction: column;
+    justify-content: space-around;
+    max-width: 100%;
+}

@@ -30,8 +30,11 @@ class DB:
         data = table_cur.fetchall()
 
         return data
-    # returns the count of new unrecognized photos
+
     def get_new_count(self):
+        """
+            Returns the count of new unrecognized photos
+        """
         self.cur = self.con.cursor()
         table_cur = self.cur.execute(f"SELECT COUNT(*) AS count FROM Face WHERE person_id IS NULL;")
 
@@ -42,10 +45,11 @@ class DB:
     def get_unrecognized_samples(self):
         """
         Returns a dictionary with the following fields:
+            id: int
             time: str
             path: str
-            fname: str
         """
+
         self.cur = self.con.cursor()
         table_cur = self.cur.execute(f"SELECT f.id, f.time, f.path FROM Face f WHERE f.person_id IS NULL ORDER BY f.time DESC;")
 
@@ -53,12 +57,12 @@ class DB:
 
         return data
 
-    def get_names(self):
+    def get_people(self):
         """
         Returns a dictionary with the following fields:
-            time: str
-            path: str
+            id: int
             fname: str
+            lname: str
         """
         self.cur = self.con.cursor()
         table_cur = self.cur.execute(f"SELECT id, fname, lname FROM Person;")
@@ -75,7 +79,8 @@ class DB:
             fname: str
         """
         self.cur = self.con.cursor()
-        table_cur = self.cur.execute(f"UPDATE Face SET person_id="+person_id+";")
+        table_cur = self.cur.execute(f"UPDATE Face SET person_id={person_id} WHERE id={image_id};")
+        self.con.commit()
 
         data = table_cur.fetchall()
 
@@ -91,6 +96,12 @@ class DB:
         self.con.commit()
 
 
+    def insert_person(self, fname, lname):
+        self.cur = self.con.cursor()
+        person_cur = self.cur.execute(f"INSERT INTO Person (fname, lname) VALUES ({fname}, {lname})")
+        self.con.commit()
+
+        print(person_cur)
 
 def get():
     return DB()
