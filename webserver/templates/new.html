@@ -1,0 +1,104 @@
+<html>
+    <head>
+        <title>Hackathon - Add</title>
+        <link rel="stylesheet" href="main.css">
+        <link href='https://fonts.googleapis.com/css?family=Titillium Web' rel='stylesheet'>
+    </head>
+    <body>
+        <div class="container">
+            <ul class="responsive-table">
+              <li class="table-header">
+                <div class="col col-1">Time</div>
+                <div class="col col-2">Photo</div>
+                <div class="col col-3">Name</div>
+              </li>
+              {% if new>0 %}
+              <a href="../"><button class="button-hack" role="button-hack">Back to home</button></a>
+              {% endif %}
+              <div id="parent">
+                {% for set in data %}
+                <form id="form-{{set.id}}" target="frame" action="/new" method="POST">
+                  <li class="table-row">
+                    <div class="col col-1" data-label="time">{{set.time}}</div>
+                    <div class="col col-2" data-label="photo"><img style="width:300px" src="images/{{set.path}}"></div>
+                    <div class="col col-3" data-label="name">
+                      <div class="input-select">
+                        <select name="id" id="s-{{ set.id }}">
+          <option value="new, {{set.id}}">New Person</option> 
+                          {% for person in people %}
+                            <option value="{{person.id}},{{set.id}}">{{person.fname}} {{person.lname}}</option> 
+                          {% endfor %}   
+                        </select>
+                        
+                        <input name="fname" id="fname-{{set.id}}" placeholder="First name"></input>
+                        <input name="lname" id="lname-{{set.id}}" placeholder="Last name"></input>
+                        <button class="form" id="b-{{set.id}}" type="button">Add new person</button>
+                        <button id="r-{{set.id}}">X</button>
+                      </div>
+                    </div>
+                  </li>
+                </form>
+                {% endfor %}
+              </div>
+            </ul>
+          </div>
+          <iframe name="frame" style="display:none;"></iframe>
+
+      <script>
+        document.querySelectorAll('select').forEach(element => {
+            element.addEventListener('change', (event) => {
+                if(event.target.value != "new") {
+                    const fnameInput = document.getElementById(`fname-${event.target.id.slice(2)}`);
+                    const lnameInput = document.getElementById(`lname-${event.target.id.slice(2)}`);
+
+                    fnameInput.style.display = "none";
+                    lnameInput.style.display = "none";
+
+                    const parentForm = document.getElementById(`form-${event.target.id.slice(2)}`);
+                    
+                    // submit, then remove from the DOM
+                    parentForm.submit();
+                    parentForm.remove();
+
+                } else {
+                    const fnameInput = document.getElementById(`fname-${event.target.id.slice(2)}`);
+                    const lnameInput = document.getElementById(`lname-${event.target.id.slice(2)}`);
+                
+                    fnameInput.style.display = "block";
+                    lnameInput.style.display = "block";
+                }
+            });
+        });
+
+        document.querySelectorAll("button.form").forEach(element => {
+          element.addEventListener("click", event => {
+              event.preventDefault();
+              
+              if(event.target.id.splice(0,1) == "r") {
+                  const parentForm = document.getElementById(`form-${event.target.id.slice(2)}`);
+                  
+                  // submit, then remove from the DOM
+                  parentForm.remove();
+                  return;
+              }
+
+              const fnameInput = document.getElementById(`fname-${event.target.id.slice(2)}`);
+              const lnameInput = document.getElementById(`lname-${event.target.id.slice(2)}`);
+          
+              // Safe to submit
+              if(fnameInput.value && lnameInput.value) {
+                const parentForm = document.getElementById(`form-${event.target.id.slice(2)}`);
+                
+                // submit, then remove from the DOM
+                parentForm.submit();
+                parentForm.remove();
+              }
+          });
+        });
+
+        document.querySelector("div#parent").addEventListener("change", event => {
+            console.log(event.target.children.length)
+        });
+      </script>
+    </body>
+</html>

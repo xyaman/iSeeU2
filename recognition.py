@@ -1,7 +1,7 @@
 import logging
 
 # TODO: Change path
-import webservice.db as db
+import webserver.db as db
 
 import cv2 
 import numpy as np 
@@ -17,6 +17,7 @@ class Recognition:
     def __init__(self, source: int | str ="recognition/video.mp4") -> None:
         self.is_running = False
         self.people = 0
+        self.recognized = []
         self.capture = cv2.VideoCapture(source)
 
         database = db.get()
@@ -60,6 +61,12 @@ class Recognition:
         # Stop when the video is finished
         self.capture.release()
 
+    def update(self, images_path):
+        trainer = FaceTrainer(images_path)
+        trainer.train()
+
+        self.recognizer.read("trained_data.yml")
+
     def run(self, rects=False, window=False):
      
         # Process the video
@@ -89,6 +96,8 @@ class Recognition:
                 break
 
     def run_once(self, rects=False):
+
+        self.recognized = {}
 
         # Capture one frame at a time
         ok, frame = self.capture.read() 
@@ -128,6 +137,8 @@ class Recognition:
 
                     (startX, startY, endX, endY) = bounding_box.astype("int")
 
+                    self.recognized[self.classes[idx]] = 0
+
                     if self.classes[idx] == "person":
                         self.people += 1
 
@@ -166,9 +177,10 @@ class Recognition:
                     faceROI = cv2.cvtColor(faceROI, cv2.COLOR_BGR2GRAY)
 
                     label, _ = self.recognizer.predict(faceROI)
+                    self.recognized[self.labels[label]] = 0
+
                     if rects:
                         label = f"{self.labels[label]} {confidence * 100}"
-
                         cv2.rectangle(frame, (startX, startY), (
                             endX, endY), self.bbox_colors[0], 2)     
                          
@@ -244,7 +256,7 @@ class FaceTrainer:
 
         logging.info("Getting ROI of every image")
         for idx, img_path in enumerate(images_path):
-            image = cv2.imread("webservice/static/images/" + img_path)
+            image = cv2.imread(self.image_dir + img_path)
             boxes = self._detect_faces(net, image)
 
             # TODO: Recognize more than one
@@ -294,41 +306,6 @@ class FaceTrainer:
         recognizer.save("trained_data.yml")
 
         logging.info("Training finished")
-
-def face_recognition():
-
-    while True:
-
-        ok, image = cap.read()
-        if not ok:
-            break
-
-        (h, w) = image.shape[:2]
-        blob = cv2.dnn.blobFromImage(image, 1.0, (300, 300), (104.0, 177.0, 123.0))
-
-        # pass the blob through the network to obtain the face detections,
-        # then initialize a list to store the predicted bounding boxes
-        net.setInput(blob)
-        detections = net.forward()
-
-        # loop over the detections
-        for i in range(0, detections.shape[2]):
-            # extract the confidence (i.e., probability) associated with
-            # the detection
-            confidence = detections[0, 0, i, 2]
-            # filter out weak detections by ensuring the confidence is
-            # greater than the minimum confidence
-            if confidence > 0.5:
-                # compute the (x, y)-coordinates of the bounding box for
-                # the object
-                box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-                (startX, startY, endX, endY) = box.astype("int")
-                 # extract the face ROI, resize it, and convert it to grayscale
-                faceROI = image[startY:endY, startX:endX]
-                faceROI = cv2.resize(faceROI, (47, 62))
-                faceROI = cv2.cvtColor(faceROI, cv2.COLOR_BGR2GRAY)
-
-                print(recognizer.predict(faceROI))
 
 if __name__ == "__main__":
     # trainer = FaceTrainer("./webservice/static/images/")
